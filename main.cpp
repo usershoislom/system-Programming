@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <set>
 
 // Функция для вычисления процента сходства двух строк
 double CalculateSimilarity(const std::string& str1, const std::string& str2) {
@@ -27,8 +28,12 @@ double CalculateSimilarity(const std::string& str1, const std::string& str2) {
 
 // Функция для сравнения файлов в двух директориях
 void CompareDirectories(const std::string& dir1, const std::string& dir2, double similarityThreshold) {
+    std::set<std::string> uniqueDir1;
+    std::set<std::string> uniqueDir2;
+
     for (const auto& entry1 : std::filesystem::directory_iterator(dir1)) {
         if (entry1.is_regular_file()) {
+            bool foundMatch = false; // Флаг для отслеживания наличия совпадений
             for (const auto& entry2 : std::filesystem::directory_iterator(dir2)) {
                 if (entry2.is_regular_file()) {
                     std::ifstream file1(entry1.path());
@@ -41,13 +46,27 @@ void CompareDirectories(const std::string& dir1, const std::string& dir2, double
 
                     if (similarity == 100.0) {
                         std::cout << entry1.path().string() << " - " << entry2.path().string() << std::endl;
+                        foundMatch = true;
                     } else if (similarity >= similarityThreshold) {
-                        std::cout << entry1.path().string() << " - " << entry2.path().string() << " - " << similarity << "% similarity\n";
+                        std::cout << entry1.path().string() << " - " << entry2.path().string() << " - " << similarity << "%" << std::endl;
+                        foundMatch = true;
                     }
                 }
             }
+            // Если совпадения не найдены, добавьте файл в соответствующий набор
+            if (!foundMatch) {
+                uniqueDir1.insert(entry1.path().string());
+            }
         }
     }
+    for (const auto& file : uniqueDir1) {
+        std::cout << file << " ";
+    }
+    std::cout << uniqueDir1.size() <<" unique files in " << dir1 << std::endl;
+    for (const auto& file : uniqueDir2) {
+        std::cout << file << " ";
+    }
+    std::cout << uniqueDir2.size() <<" unique files in " << dir2 << std::endl;
 }
 
 int main(int argc, char** argv) {
