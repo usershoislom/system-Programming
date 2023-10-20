@@ -1,84 +1,61 @@
 #include <iostream>
-#include <vector>
 #include <filesystem>
 #include <fstream>
+#include <string>
+#include <vector>
 #include <algorithm>
 
-namespace fs = std::filesystem;
+// Функция для вычисления процента сходства двух строк
+double CalculateSimilarity(const std::string& str1, const std::string& str2) {
+    int len1 = str1.size();
+    int len2 = str2.size();
+    int maxLen = std::max(len1, len2);
 
-
-bool identical(const std::string& file1_path, const std::string& file2_path) {
-    std::ifstream file1(file1_path, std::ios::binary);
-    std::ifstream file2(file2_path, std::ios::binary);
-
-    if (!file1.is_open() || !file2.is_open()) {
-        return false;
-    }
-    std::istreambuf_iterator<char> begin1(file1);
-    std::istreambuf_iterator<char> end1;
-    std::istreambuf_iterator<char> begin2(file2);
-    std::istreambuf_iterator<char> end2;
-
-    return equal(begin1, end1, begin2, end2);
-}
-
-std::string construct_full_path(const std::string& dir_path, const std::string& file_name) {
-    return dir_path + file_name;
-}
-
-int main(int argc, char* argv[]) {
-    if (argc != 4) {
-        std::cout << "Usage: " << argv[0] << " dir1 dir2" << std::endl;
-        return 1;
+    if (maxLen == 0) {
+        return 100.0;  // Файлы пусты, считаем их идентичными
     }
 
-    std::string dir1_path = argv[1];
-    std::string dir2_path = argv[2];
-    uint64_t similarity = std::stoull(argv[3]);
-
-    std::vector<std::string> dir1_files;
-    std::vector<std::string> dir2_files;
-
-    // Получаем список файлов из первой директории
-    for (const auto& entry : fs::directory_iterator(dir1_path)) {
-        if (entry.is_regular_file()) {
-            dir1_files.push_back(entry.path().filename().string());
-            //std::cout << entry.path().filename().string() << "\n";
+    int commonLen = 0;
+    for (int i = 0; i < len1; ++i) {
+        if (i < len2 && str1[i] == str2[i]) {
+            commonLen++;
         }
     }
 
-    // Получаем список файлов из второй директории
-    for (const auto& entry : fs::directory_iterator(dir2_path)) {
-        if (entry.is_regular_file()) {
-            dir2_files.push_back(entry.path().filename().string());
-            //std::cout<< "Test: " << entry.path().filename().string() << "\n";
-        }
-    }
+    return static_cast<double>(commonLen) / maxLen * 100.0;
+}
 
-    // Проходим по списку файлов из первой директории и ищем совпадения во второй директории
-    for (const auto& file1 : dir1_files) {
-        for (const auto& file2 : dir2_files) {
-            if (identical(construct_full_path(dir1_path, file1), construct_full_path(dir2_path, file2))) {
-                std::cout << construct_full_path(dir1_path, file1) << " - " << construct_full_path(dir2_path, file2) << std::endl;
+// Функция для сравнения файлов в двух директориях
+void CompareDirectories(const std::string& dir1, const std::string& dir2, double similarityThreshold) {
+    for (const auto& entry1 : std::filesystem::directory_iterator(dir1)) {
+        if (entry1.is_regular_file()) {
+            for (const auto& entry2 : std::filesystem::directory_iterator(dir2)) {
+                if (entry2.is_regular_file()) {
+                    std::ifstream file1(entry1.path());
+                    std::ifstream file2(entry2.path());
+
+                    std::string content1((std::istreambuf_iterator<char>(file1)), std::istreambuf_iterator<char>());
+                    std::string content2((std::istreambuf_iterator<char>(file2)), std::istreambuf_iterator<char>());
+
+                    double similarity = CalculateSimilarity(content1, content2);
+
+                    if (similarity == 100.0) {
+                        std::cout << entry1.path().string() << " - " << entry2.path().string() << std::endl;
+                    } else if (similarity >= similarityThreshold) {
+                        std::cout << entry1.path().string() << " - " << entry2.path().string() << " - " << similarity << "% similarity\n";
+                    }
+                }
             }
         }
     }
+}
 
-    // Find elements in vec1 that are not in vec2
-    for (const auto& file : dir1_files) {
-        if (std::find(dir2_files.begin(), dir2_files.end(), file) == dir2_files.end()) {
-            std::cout << file << " ";
-        }
-    }
-    std::cout << std::endl;
+int main(int argc, char** argv) {
+    std::string directory1 = argv[1];
+    std::string directory2 = argv[2];
+    double similarityThreshold = std::stoul(argv[3]);
 
-    // Find elements in vec2 that are not in vec1
-    for (const auto& file : dir2_files) {
-        if (std::find(dir1_files.begin(), dir1_files.end(), file) == dir1_files.end()) {
-            std::cout << file << " ";
-        }
-    }
-    std::cout << std::endl;
+    CompareDirectories(directory1, directory2, similarityThreshold);
 
     return 0;
 }
